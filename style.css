@@ -1,3 +1,9 @@
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
 :root {
 	font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
 	line-height: 1.5;
@@ -74,18 +80,39 @@ button:focus-visible {
 /* game */
 #playground {
 	width: 100vw;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
 }
 
 .cell {
 	width: 10px;
 	height: 10px;
-	display: inline-block;
 }
 
-.cell:nth-child(2n-1) {
-	background-color: #646cff;
+.cell.alive {
+	background-color: #535bf2;
 }
 
-.cell:nth-child(2n) {
-	background-color: #67ff64;
+#title {
+	position: fixed;
+	background-color: black;
+	margin: 20px 30px;
+}
+
+#play-pause {
+	position: fixed;
+	bottom: 20px;
+	text-align: center;
+	left: 50%;
+	transform: translate(-50%);
+}
+
+#play-pause button {
+	background-color: cornflowerblue;
+}
+
+#play-pause button:hover {
+	background-color: #535bf2;
 }
