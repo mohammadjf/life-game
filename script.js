@@ -80,9 +80,11 @@ const initializer = () => {
 		for (let i = 0; i < width; i++) {
 			const cellDom = document.createElement('div');
 			const isAlive = (Math.floor(Math.random() * 10) + 1) > 9;
-			row.push({ cellDom, isAlive });
 			cellDom.classList.add('cell', isAlive ? 'alive' : 'dead');
+			cellDom.setAttribute('data-i', i);
+			cellDom.setAttribute('data-j', j);
 			playground.appendChild(cellDom);
+			row.push({ cellDom, isAlive });
 		}
 		array.push(row);
 	}
@@ -113,22 +115,33 @@ const gameHandler = () => {
 	syncView();
 }
 
+const giveLife = (i, j) => {
+	array[j][i].cellDom.classList.add('cell', 'alive');
+	array[j][i].isAlive = true;
+}
+
 // event handlers
 document.addEventListener('DOMContentLoaded', () => {
 	initializer();
 
-	window.addEventListener('resize', () => {
-		const newViewportWidth = window.innerWidth || document.documentElement.clientWidth;
-		const newViewportHeight = window.innerHeight || document.documentElement.clientHeight;
-	});
+	const playButton = document.getElementById('play-button');
+	playButton.addEventListener('click', () => {
+		if (intervallId) {
+			playButton.innerHTML = '▶️';
+			playPauseToggle();
+			return;
+		}
 
-	const playButton = document.getElementById('play-pause');
-	playButton.addEventListener('click', playPauseToggle);
+		playButton.innerHTML = '⏸️';
+		playPauseToggle();
+	});
 	let isMouseDown;
+
 	document.addEventListener('mousedown', (e) => {
 		e.preventDefault();
 		isMouseDown = true;
 	});
+
 	document.addEventListener('mouseup', () => isMouseDown = false);
 	const cells = document.querySelectorAll('.cell');
 	cells.forEach((cell) => {
@@ -142,9 +155,15 @@ document.addEventListener('DOMContentLoaded', () => {
 						i + x < 0 ||
 						j + y + 1 > array.length ||
 						i + x + 1 > array[j + y].length) { continue; }
-					giveLife(i + x, j + y)
+					giveLife(i + x, j + y);
 				}
 			}
+		});
+
+		cell.addEventListener('mousedown', function () {
+			const i = +cell.getAttribute('data-i');
+			const j = +cell.getAttribute('data-j');
+			giveLife(i, j);
 		});
 	})
 });
