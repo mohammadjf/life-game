@@ -1,169 +1,182 @@
-'use strict';
-const cellSize = 10; //px
-const array = [];
+"use strict";
 
-const getBoardSize = () => {
-	const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
-	const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-	const width = Math.floor(viewportWidth / cellSize);
-	const height = Math.floor(viewportHeight / cellSize);
-	return [width, height];
+const cellSize = 10;
+let cols, rows;
+let board, nextBoard;
+let ctx;
+let intervalId = null;
+
+// =============================
+// Initialize
+// =============================
+function init() {
+  const canvas = document.getElementById("board");
+  ctx = canvas.getContext("2d");
+
+  resizeCanvas();
+  createBoards();
+  randomizeBoard();
+  drawBoard();
+
+  setupInputHandlers();
+
+  // ⭐ Start immediately
+  intervalId = setInterval(gameLoop, 100);
 }
 
-const countPeopleAround = (i, j) => {
-	let peopleAround = 0;
-	for (let y = -1; y <= 1; y++) {
-		for (let x = -1; x <= 1; x++) {
-			if (j + y < 0 ||
-				i + x < 0 ||
-				j + y + 1 > array.length ||
-				i + x + 1 > array[j + y].length ||
-				(x == 0 && y == 0))
-				continue;
-			if (array[j + y][i + x].isAlive) {
-				peopleAround++;
-			}
-		}
-	}
-	return peopleAround;
+function resizeCanvas() {
+  const canvas = document.getElementById("board");
+
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  cols = Math.floor(canvas.width / cellSize);
+  rows = Math.floor(canvas.height / cellSize);
 }
 
-const lifeHandler = () => {
-	array.forEach((row, j) => {
-		row.forEach((cell, i) => {
-			const peopleAroundCount = countPeopleAround(i, j);
-			if (cell.isAlive && (peopleAroundCount == 3 || peopleAroundCount == 2)) {
-				cell.gonnaLive = true;
-				return;
-			}
-			if (!cell.isAlive && peopleAroundCount == 3) {
-				cell.gonnaLive = true;
-				return;
-			}
-
-			cell.gonnaLive = false;
-		});
-	});
-
-	array.forEach((row) => {
-		row.forEach((cell) => {
-			if (cell.gonnaLive) {
-				cell.isAlive = true;
-				return;
-			}
-
-			cell.isAlive = false;
-		});
-	});
+function createBoards() {
+  board = new Array(rows).fill().map(() => new Array(cols).fill(0));
+  nextBoard = new Array(rows).fill().map(() => new Array(cols).fill(0));
 }
 
-const syncView = () => {
-	array.forEach((row) => {
-		row.forEach((cell) => {
-			if (cell.isAlive) {
-				cell.cellDom.classList.add('alive');
-				cell.cellDom.classList.remove('dead');
-				return;
-			}
-			cell.cellDom.classList.add('dead');
-			cell.cellDom.classList.remove('alive');
-		});
-	});
+function randomizeBoard() {
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      board[y][x] = Math.random() > 0.92 ? 1 : 0;
+    }
+  }
 }
 
+// =============================
+// Game of Life logic
+// =============================
+function countNeighbors(x, y) {
+  let sum = 0;
 
-const initializer = () => {
-	const playground = document.getElementById('playground');
-	const [width, height] = getBoardSize();
-	for (let j = 0; j < height; j++) {
-		const row = [];
-		for (let i = 0; i < width; i++) {
-			const cellDom = document.createElement('div');
-			const isAlive = (Math.floor(Math.random() * 10) + 1) > 9;
-			cellDom.classList.add('cell', isAlive ? 'alive' : 'dead');
-			cellDom.setAttribute('data-i', i);
-			cellDom.setAttribute('data-j', j);
-			playground.appendChild(cellDom);
-			row.push({ cellDom, isAlive });
-		}
-		array.push(row);
-	}
-	play();
+  for (let yy = -1; yy <= 1; yy++) {
+    for (let xx = -1; xx <= 1; xx++) {
+      if (xx === 0 && yy === 0) continue;
+
+      const nx = x + xx;
+      const ny = y + yy;
+
+      if (nx >= 0 && nx < cols && ny >= 0 && ny < rows) {
+        sum += board[ny][nx];
+      }
+    }
+  }
+  return sum;
 }
 
-let intervallId;
-const play = () => {
-	intervallId = setInterval(gameHandler, 100);
+function step() {
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const neighbors = countNeighbors(x, y);
+
+      if (board[y][x] === 1) {
+        nextBoard[y][x] = neighbors === 2 || neighbors === 3 ? 1 : 0;
+      } else {
+        nextBoard[y][x] = neighbors === 3 ? 1 : 0;
+      }
+    }
+  }
+
+  // Swap references
+  [board, nextBoard] = [nextBoard, board];
 }
 
-const pause = () => {
-	clearInterval(intervallId);
-	intervallId = null;
+// =============================
+// Rendering
+// =============================
+function drawBoard() {
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+  ctx.fillStyle = "#0f0";
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      if (board[y][x] === 1) {
+        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+      }
+    }
+  }
 }
 
-const playPauseToggle = () => {
-	if (intervallId) {
-		pause()
-		return;
-	}
-
-	play();
+// =============================
+// Loop
+// =============================
+function gameLoop() {
+  step();
+  drawBoard();
 }
 
-const gameHandler = () => {
-	lifeHandler();
-	syncView();
+// =============================
+// Drawing (Mouse + Touch)
+// =============================
+function setupInputHandlers() {
+  let drawing = false;
+
+  const drawAt = (clientX, clientY) => {
+    const rect = ctx.canvas.getBoundingClientRect();
+    const x = Math.floor((clientX - rect.left) / cellSize);
+    const y = Math.floor((clientY - rect.top) / cellSize);
+
+    if (x >= 0 && x < cols && y >= 0 && y < rows) {
+      // board[y][x] = 1;
+      board[y - 1][x] = 1;
+      board[y + 1][x] = 1;
+      board[y][x - 1] = 1;
+      board[y][x + 1] = 1;
+
+      drawBoard();
+    }
+  };
+
+  // Mouse
+  ctx.canvas.addEventListener("mousedown", (e) => {
+    drawing = true;
+    drawAt(e.clientX, e.clientY);
+  });
+  window.addEventListener("mouseup", () => (drawing = false));
+  ctx.canvas.addEventListener("mousemove", (e) => {
+    if (drawing) drawAt(e.clientX, e.clientY);
+  });
+
+  // Touch
+  ctx.canvas.addEventListener(
+    "touchstart",
+    (e) => {
+      drawing = true;
+      e.preventDefault();
+      const t = e.touches[0];
+      drawAt(t.clientX, t.clientY);
+    },
+    { passive: false }
+  );
+
+  ctx.canvas.addEventListener(
+    "touchmove",
+    (e) => {
+      if (!drawing) return;
+      e.preventDefault();
+      const t = e.touches[0];
+      drawAt(t.clientX, t.clientY);
+    },
+    { passive: false }
+  );
+
+  ctx.canvas.addEventListener("touchend", () => (drawing = false));
 }
 
-const giveLife = (i, j) => {
-	array[j][i].cellDom.classList.add('cell', 'alive');
-	array[j][i].isAlive = true;
-}
-
-// event handlers
-document.addEventListener('DOMContentLoaded', () => {
-	initializer();
-
-	const playButton = document.getElementById('play-button');
-	playButton.addEventListener('click', () => {
-		if (intervallId) {
-			playButton.innerHTML = '▶️';
-			playPauseToggle();
-			return;
-		}
-
-		playButton.innerHTML = '⏸️';
-		playPauseToggle();
-	});
-	let isMouseDown;
-
-	document.addEventListener('mousedown', (e) => {
-		e.preventDefault();
-		isMouseDown = true;
-	});
-
-	document.addEventListener('mouseup', () => isMouseDown = false);
-	const cells = document.querySelectorAll('.cell');
-	cells.forEach((cell) => {
-		cell.addEventListener('mouseenter', function () {
-			if (!isMouseDown) return;
-			const i = +cell.getAttribute('data-i');
-			const j = +cell.getAttribute('data-j');
-			for (let y = -1; y <= 1; y++) {
-				for (let x = -1; x <= 1; x++) {
-					if (j + y < 0 ||
-						i + x < 0 ||
-						j + y + 1 > array.length ||
-						i + x + 1 > array[j + y].length) { continue; }
-					giveLife(i + x, j + y);
-				}
-			}
-		});
-
-		cell.addEventListener('mousedown', function () {
-			const i = +cell.getAttribute('data-i');
-			const j = +cell.getAttribute('data-j');
-			giveLife(i, j);
-		});
-	})
+// =============================
+// Resize behavior
+// =============================
+window.addEventListener("resize", () => {
+  clearInterval(intervalId);
+  resizeCanvas();
+  createBoards();
+  randomizeBoard();
+  drawBoard();
+  intervalId = setInterval(gameLoop, 100);
 });
+
+document.addEventListener("DOMContentLoaded", init);
